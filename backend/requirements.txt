@@ -1,0 +1,16 @@
+# Core
+pydantic>=2.6.1
+
+# Data Processing
+numpy>=1.26.4
+scipy>=1.12.0
+
+# Testing
+pytest>=8.0.0
+
+# Code Quality
+ruff>=0.2.1
+mypy>=1.8.0
+
+# Utilities
+loguru>=0.7.2
