@@ -144,9 +144,26 @@ UCL clubs come from many leagues, so they are rated with a separate model, `anal
 
 Knockout ties are priced in `analytics/knockout.py`: aggregate score over two legs, no away-goals rule, 30 minutes of extra time at 88% of the normal scoring rate, then penalties at 50/50. A final is a single match at a neutral venue. The dashboard shows the probability of each side going through, plus Polymarket's "(To Advance)" price when it lists one.
 
+### Champions League backtest (as of 23 Oct 2026)
+
+This is a walk-forward test: the model is refitted before every UCL match date using only results played before it. The settings were tuned on 2024-25 (189 matches) and tested on 2025-26 through 23 Oct 2026 (243 matches). Polymarket is priced 60 minutes before kick-off.
+
+| Test set | 1X2 log loss |
+|---|---|
+| foot8 cross-league model (226 matches Polymarket listed) | 0.8893 |
+| Polymarket T−60 min | **0.8865** |
+| Always 45 / 25 / 30 (base rates) | 1.0237 |
+
+| Buy on Polymarket when model − price ≥ | Bets | ROI (1¢ slippage) | 95% CI (bootstrap by match) |
+|---|---|---|---|
+| 3% | 296 | −0.7% | −24% … +24% |
+| 5% | 185 | +11.4% | −21% … +49% |
+| 8% | 91 | +12.6% | −26% … +56% |
+
+On Champions League matches the model is much closer to the market than in the EPL or La Liga. The likely reason is that the market has a harder job comparing clubs across leagues. The positive ROI at 5% and above is still not statistically meaningful: about 100 matches is far too few, and every interval comfortably includes zero. In the test seasons, goals were also under-projected (3.30 per match vs 3.61 actual). **The UCL edge cap stays at LEAN.** Re-run `scripts/ucl_backtest.py --write` as the season adds matches; a few hundred more is the minimum before trusting the edge.
+
 ## Not done yet
 
-- **No Champions League backtest yet.** The ESPN history download is still filling in after rate limiting, so `scripts/ucl_backtest.py` has not been run. Treat UCL numbers as unvalidated.
 - **No injury adjustment for the UCL**, because there is no free cross-league injury feed.
 - **Stage-reach markets are not priced.** Markets like "reach the quarterfinal" need a whole-tournament simulation.
 - **No live injury feed for La Liga.** Absences have to be entered by hand in `data/absences.json`.

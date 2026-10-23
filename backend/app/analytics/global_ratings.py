@@ -36,10 +36,11 @@ EURO_GROUP = "uefa"
 
 @dataclass
 class GlobalConfig:
-    half_life_days: float = 240.0
-    team_ridge: float = 4.0       # weighted-match equivalents pulling α, δ → 0
-    league_ridge: float = 1.0
-    euro_weight: float = 1.5      # European matches carry the cross-league signal
+    # Tuned by scripts/ucl_backtest.py on 2024-25 UCL (walk-forward 1X2 log loss).
+    half_life_days: float = 365.0
+    team_ridge: float = 2.0       # weighted-match equivalents pulling α, δ → 0
+    league_ridge: float = 0.3
+    euro_weight: float = 1.0      # European matches weighted like domestic ones
     window_days: int = 1100
     min_weight: float = 0.02
 

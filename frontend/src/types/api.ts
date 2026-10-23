@@ -87,6 +87,30 @@ export interface BacktestRow {
   ll_ou25?: number;
 }
 
+export interface UclSplit {
+  matches: number;
+  ll_model: number;
+  ll_uniform_prior: number;
+  ou_ll_model: number;
+  goals_projected: number;
+  goals_actual: number;
+  home_model: number;
+  home_rate: number;
+  with_polymarket?: number;
+  ll_model_on_poly_set?: number;
+  ll_polymarket?: number;
+}
+
+export interface UclBacktest {
+  as_of: string;
+  description: string;
+  train: UclSplit;
+  test: UclSplit;
+  betting: Record<string, { bets: number; pnl: number; roi: number }>;
+  betting_ci95?: Record<string, [number, number]>;
+  conclusion?: string;
+}
+
 export interface BacktestSummary {
   as_of: string;
   conclusion: string;
@@ -97,4 +121,5 @@ export interface BacktestSummary {
     rows: BacktestRow[];
     betting: { strategy: string; roi_range: string }[];
   };
+  ucl?: UclBacktest;
 }

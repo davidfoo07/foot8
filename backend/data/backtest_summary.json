@@ -5,21 +5,111 @@
     "description": "Walk-forward EPL + La Liga, tuned on 2018-21, tested on 2022-25",
     "matches": 3040,
     "rows": [
-      {"name": "foot8 model", "ll_1x2": 0.9758, "ll_ou25": 0.6758},
-      {"name": "Pinnacle close (de-vigged)", "ll_1x2": 0.96, "ll_ou25": 0.6666}
+      {
+        "name": "foot8 model",
+        "ll_1x2": 0.9758,
+        "ll_ou25": 0.6758
+      },
+      {
+        "name": "Pinnacle close (de-vigged)",
+        "ll_1x2": 0.96,
+        "ll_ou25": 0.6666
+      }
     ]
   },
   "vs_polymarket": {
     "description": "915 settled EPL + La Liga matches, Aug 2025 → Oct 2026, priced 60 min before kick-off",
     "matches": 915,
     "rows": [
-      {"name": "foot8 model", "ll_1x2": 0.9994},
-      {"name": "Polymarket T-60 min", "ll_1x2": 0.9825},
-      {"name": "Pinnacle close", "ll_1x2": 0.9847}
+      {
+        "name": "foot8 model",
+        "ll_1x2": 0.9994
+      },
+      {
+        "name": "Polymarket T-60 min",
+        "ll_1x2": 0.9825
+      },
+      {
+        "name": "Pinnacle close",
+        "ll_1x2": 0.9847
+      }
     ],
     "betting": [
-      {"strategy": "Buy model edges ≥3%", "roi_range": "-2% to -47% by market"},
-      {"strategy": "Buy model edges ≥5%", "roi_range": "-5% to -20% by market"}
+      {
+        "strategy": "Buy model edges ≥3%",
+        "roi_range": "-2% to -47% by market"
+      },
+      {
+        "strategy": "Buy model edges ≥5%",
+        "roi_range": "-5% to -20% by market"
+      }
     ]
+  },
+  "ucl": {
+    "as_of": "2026-10-23",
+    "description": "Champions League walk-forward; tuned on 2024-09-01 to 2025-06-30, tested 2025-07-01 to 2026-10-23; Polymarket priced 60 min before kick-off",
+    "config": {
+      "half_life_days": 365.0,
+      "team_ridge": 2.0,
+      "league_ridge": 0.3,
+      "euro_weight": 1.0,
+      "window_days": 1100,
+      "min_weight": 0.02
+    },
+    "train": {
+      "matches": 189,
+      "ll_model": 0.8841,
+      "ll_uniform_prior": 1.021,
+      "ou_ll_model": 0.6395,
+      "goals_projected": 3.277,
+      "goals_actual": 3.27,
+      "home_model": 0.47,
+      "home_rate": 0.513
+    },
+    "test": {
+      "matches": 243,
+      "ll_model": 0.8856,
+      "ll_uniform_prior": 1.0237,
+      "ou_ll_model": 0.608,
+      "goals_projected": 3.299,
+      "goals_actual": 3.605,
+      "home_model": 0.482,
+      "home_rate": 0.519,
+      "with_polymarket": 226,
+      "ll_model_on_poly_set": 0.8893,
+      "ll_polymarket": 0.8865
+    },
+    "betting": {
+      "0.03": {
+        "bets": 296,
+        "pnl": -2.04,
+        "roi": -0.0069
+      },
+      "0.05": {
+        "bets": 185,
+        "pnl": 21.03,
+        "roi": 0.1137
+      },
+      "0.08": {
+        "bets": 91,
+        "pnl": 11.5,
+        "roi": 0.1263
+      }
+    },
+    "betting_ci95": {
+      "0.03": [
+        -0.235,
+        0.238
+      ],
+      "0.05": [
+        -0.21,
+        0.49
+      ],
+      "0.08": [
+        -0.263,
+        0.562
+      ]
+    },
+    "conclusion": "Cross-league model is close to Polymarket on UCL matches (1X2 log loss 0.889 vs 0.887 on 226 test matches) and model edges ≥5% returned +11% over 185 bets, but a match-level bootstrap puts the 95% interval at roughly −21% to +49%: not statistically distinguishable from zero. Verdicts stay capped at LEAN."
   }
 }
