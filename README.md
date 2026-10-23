@@ -4,7 +4,7 @@
 
 The football version of the CourtEdge (bk8) NBA model. It uses the same pipeline: team ratings, then lineup adjustment, then the match model, then the edge against the Polymarket price. Each step has been rebuilt for football: expected goals instead of points per possession, a Poisson score matrix instead of a Normal margin, and three-way markets instead of two-way ones.
 
-> ⚠️ The calibration constants come from public football-modelling literature for the top European leagues. None of them has been backtested on foot8's own data yet. Fit them on historical matches before you size real bets.
+> ⚠️ **Read the backtest section before betting.** Against real Polymarket prices, the model does not show a profitable edge. Every verdict is capped at LEAN (`MAX_VERDICT` in `app/services/match_day.py`).
 
 ## Quick start
 
@@ -13,7 +13,46 @@ cd backend
 python3.12 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 pytest -q
+
+python scripts/predict.py                      # price the next 7 days of EPL + La Liga Polymarket matches
+python scripts/predict.py --leagues EPL --days 2 --min-edge 0.05 --json picks.json
+python scripts/backtest.py                     # walk-forward vs Pinnacle closing odds, 2018-19 → 2025-26
+python scripts/polymarket_backtest.py          # vs real historic Polymarket prices (Aug 2025 →)
+python scripts/tune.py                         # re-fit the rating constants
 ```
+
+## Data sources
+
+| Source | Used for | Notes |
+|---|---|---|
+| Understat `getLeagueData` | match xG, results, fixtures (EPL, La Liga, other big-5 leagues) | current season cached for 30 min, past seasons forever |
+| football-data.co.uk | historic results + Pinnacle closing 1X2 / O/U 2.5 / AH odds | backtest benchmark |
+| Polymarket Gamma + CLOB | live match markets (1X2, spreads, totals, BTTS), price history | the stake is placed against these prices |
+| FPL `bootstrap-static` | EPL injuries/suspensions (chance of playing), player xG/xA, on-pitch xGC | EPL only |
+| `backend/data/absences.json` | manual absences for any league (copy `absences.example.json`) | there is no free La Liga injury feed |
+
+Responses are cached under `backend/data/cache/`, which is gitignored.
+
+## Backtest results (as of 23 Oct 2026)
+
+**Walk-forward vs Pinnacle's close.** EPL + La Liga, constants tuned on 2018-21 and tested on 2022-25 (3,040 matches). Lower log loss is better.
+
+| | 1X2 log loss | O/U 2.5 log loss |
+|---|---|---|
+| foot8 model | 0.9758 | 0.6758 |
+| Pinnacle close (de-vigged) | **0.9600** | **0.6666** |
+
+The model is well calibrated: 2.76 goals per match projected vs 2.79 actual, and its home and draw rates are within 1.5 percentage points of reality. It is still clearly less sharp than Pinnacle. Blending it with the close does not improve on the close, and flat-stake betting at closing odds loses money in the test seasons.
+
+**Against real Polymarket prices.** 915 settled EPL + La Liga matches, Aug 2025 to Oct 2026, priced 60 minutes before kick-off:
+
+| | 1X2 log loss |
+|---|---|
+| foot8 model | 0.9994 |
+| Polymarket, T−60 min | **0.9825** |
+| Pinnacle close | 0.9847 |
+
+An hour before kick-off, Polymarket is as sharp as Pinnacle's close. The average gap between the two is 1.0 percentage point. Buying wherever the model disagrees with the price loses money in every market at every edge threshold tested: about −5% to −28% ROI with 1¢ slippage. A day out (T−24 h), Polymarket is further from Pinnacle's close: a 1.55-point gap, and buying wherever it was cheaper than the close returned +17% to +25% over ~280 bets. That return relies on look-ahead, because the closing price isn't known a day early. Using Pinnacle's own earlier odds instead (no look-ahead) gave no reliable profit. Only ~400 matches have those odds; at T−1 h the strategy loses money, and at T−24 h there are too few bets to judge. The movement comes from news, such as team sheets and late injuries, that arrives after T−24 h. **Conclusion: on its own, the model is not a betting signal for these leagues.** Its realistic uses are as a sanity check and as a scenario tool (what a confirmed absence should do to the price), not as an automatic bet list.
 
 ```python
 from app.analytics import predict_match
@@ -69,6 +108,18 @@ backend/app/
 └── services/validation.py    # range + cross-source checks (xG 0.4–3.0, xGD ±2 …)
 ```
 
-## Not ported yet
+## Layout additions
 
-Only the formula layer has been ported. The bk8 data connectors (stats.nba.com, pbpstats, the NBA injury feed), the pipeline orchestrator, the FastAPI endpoints and the Next.js frontend are not here yet. They need football data sources to plug into, for example an xG provider (FBref/Opta, Understat), an injury and suspension feed, fixtures, and Polymarket soccer event matching.
+```
+backend/app/connectors/   understat, football_data, polymarket, fpl, team_names, http (retry + cache)
+backend/app/services/     ratings (as-of-date, no look-ahead), standings, match_day (live pipeline)
+backend/app/backtest/     engine (vs Pinnacle), polymarket_bt (vs real Polymarket prices)
+backend/scripts/          predict.py, backtest.py, polymarket_backtest.py, tune.py
+```
+
+## Not done yet
+
+- **Champions League.** UCL matches pit leagues against each other, so team ratings need a league-strength adjustment. ClubElo, the usual source, is currently down, and many UCL clubs play outside Understat's leagues.
+- **No live injury feed for La Liga.** Absences have to be entered by hand in `data/absences.json`.
+- **Schedule context only sees league matches.** Cup and European fixtures are not loaded, so midweek congestion is undercounted.
+- **No API or frontend.** The bk8 FastAPI endpoints and Next.js frontend are not ported; for now there is a CLI only.

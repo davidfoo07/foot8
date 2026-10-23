@@ -35,14 +35,15 @@ from loguru import logger
 from app.schemas.prediction import MatchPrediction
 
 # ─── Calibration Constants ──────────────────────────────────────────
-# Priors from the public football-modelling literature for the top European
-# leagues — NOT yet backtested on foot8's own data.  Re-fit before betting.
+# HOME_ADVANTAGE_GOALS / LEAGUE_AVG_* are fallbacks only: the live path and
+# the backtest use the league's own home−away goals (ratings.build_ratings).
+# DIXON_COLES_RHO is backtest-tuned (scripts/tune.py).
 
 HOME_ADVANTAGE_GOALS = 0.30        # goals of supremacy; top-5 leagues ≈ 0.25-0.35
                                     # since 2021 (pre-COVID ≈ 0.35-0.40)
 LEAGUE_AVG_GOALS = 2.75            # goals per match, top-5 league average (fallback)
 LEAGUE_AVG_XG = LEAGUE_AVG_GOALS / 2.0  # xG per team per 90 (fallback)
-DIXON_COLES_RHO = -0.10            # low-score dependence; fitted values ≈ −0.05…−0.15
+DIXON_COLES_RHO = -0.05            # low-score dependence; backtest-tuned (EPL+La Liga)
                                     # (inflates 0-0 / 1-1, deflates 1-0 / 0-1)
 MAX_GOALS = 10                     # score matrix is 0..MAX_GOALS per side
 MIN_LAMBDA = 0.05                  # floor on expected goals after adjustments

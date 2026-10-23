@@ -7,3 +7,5 @@ venv/
 .venv/
 .env
 .DS_Store
+backend/data/cache/
+backend/data/absences.json

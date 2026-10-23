@@ -40,6 +40,13 @@ NO_STATS_XGF_IMPACT = -0.05
 NO_STATS_XGA_IMPACT = 0.03
 NO_STATS_MINUTES_SHARE = 0.5
 
+# Contribution model (sources without on/off splits: FPL, Understat).
+# Attack: the player's own xG + xA per 90 above a positional replacement.
+# xG and xA of one chance overlap (the assist and the shot are the same
+# chance), so only half of xG + xA is attributed to the player.
+REPLACEMENT_XGI90 = {"FWD": 0.35, "MID": 0.20, "DEF": 0.08, "GK": 0.0, "UNK": 0.20}
+CONTRIBUTION_SHARE = 0.5
+
 
 def _miss_probability(status: str, override: str | None) -> float:
     if override is not None:
@@ -53,6 +60,7 @@ def build_player_absences(
     injury_overrides: dict[str, str] | None = None,
     team_xgd: float = 0.0,
     backup_keeper_gp90: float = -0.10,
+    team_xga: float | None = None,
 ) -> list[PlayerAbsence]:
     """Build the absence list with per-player impact.
 
@@ -61,6 +69,9 @@ def build_player_absences(
       "POS" (GK/DEF/MID/FWD), "ON_XGD90", "ON_XGF90"?, "ON_XGA90"?,
       "GOALS_PREVENTED90" (keepers)}.
     injury_overrides: name → FULL (100% miss) / HALF (50%) / OFF (plays).
+
+    Metrics with "XGI90" (+ optional "ON_XGA90") and no on/off "ON_XGD90" use
+    the contribution model instead (FPL / Understat data).
 
     Outfield players split their relative xGD into attack/defence by the
     on-pitch xGF/xGA deviations when present, else by position (forwards
@@ -86,6 +97,20 @@ def build_player_absences(
                 float(stats["GOALS_PREVENTED90"]), backup_keeper_gp90, share,
             )
             xgf_i, xga_i, xgd_i = xgf_i * miss, xga_i * miss, xgd_i * miss
+        elif stats and stats.get("XGI90") is not None and stats.get("ON_XGD90") is None:
+            minutes = float(stats.get("MIN", 0) or 0)
+            apps = float(stats.get("GP", 0) or 0)
+            if minutes < MIN_MINUTES_THRESHOLD or apps < MIN_APPEARANCES:
+                continue
+            share = minutes / 90.0
+            above = max(0.0, float(stats["XGI90"]) - REPLACEMENT_XGI90.get(position, 0.2))
+            xgf_i = -above * CONTRIBUTION_SHARE * share * miss
+            xga_i = 0.0
+            if team_xga is not None and stats.get("ON_XGA90") is not None:
+                # Team concedes less with him on → losing him raises xGA.
+                xga_i = (team_xga - float(stats["ON_XGA90"])) * share * DAMPENING * miss
+                xga_i = max(xga_i, 0.0)
+            xgd_i = xgf_i - xga_i
         elif stats:
             minutes = float(stats.get("MIN", 0) or 0)
             apps = float(stats.get("GP", 0) or 0)

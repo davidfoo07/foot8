@@ -1,0 +1,12 @@
+{
+  "LALIGA": {
+    "Barcelona": [
+      {"player_id": "manual-1", "player_name": "Robert Lewandowski", "status": "OUT", "reason": "hamstring"}
+    ]
+  },
+  "EPL": {
+    "Arsenal": [
+      {"player_id": "manual-2", "player_name": "Bukayo Saka", "status": "QUESTIONABLE"}
+    ]
+  }
+}
