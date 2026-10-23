@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+:root {
+  /* Background layers */
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-tertiary: #1a2235;
+  --bg-hover: #1f2937;
+
+  /* Text */
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Edges / Verdicts */
+  --edge-strong-buy: #00C853;
+  --edge-buy: #4CAF50;
+  --edge-lean: #FFD600;
+  --edge-no-edge: #78909C;
+  --edge-avoid: #FF1744;
+
+  /* Accents */
+  --accent-blue: #2979FF;
+  --accent-purple: #7C4DFF;
+
+  /* Borders */
+  --border-subtle: #1e293b;
+  --border-active: #334155;
+
+  /* Charts */
+  --chart-line: #2979FF;
+  --chart-area: rgba(41, 121, 255, 0.1);
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-tertiary: var(--bg-tertiary);
+  --color-bg-hover: var(--bg-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-edge-strong-buy: var(--edge-strong-buy);
+  --color-edge-buy: var(--edge-buy);
+  --color-edge-lean: var(--edge-lean);
+  --color-edge-no-edge: var(--edge-no-edge);
+  --color-edge-avoid: var(--edge-avoid);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-active: var(--border-active);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'DM Sans', 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-active);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

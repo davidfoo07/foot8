@@ -14,12 +14,28 @@ python3.12 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 
-python scripts/predict.py                      # price the next 7 days of EPL + La Liga Polymarket matches
+python scripts/predict.py                      # price the next 7 days of EPL, La Liga + UCL Polymarket matches
 python scripts/predict.py --leagues EPL --days 2 --min-edge 0.05 --json picks.json
+python scripts/predict.py --save               # also store the run in Supabase (DATABASE_URL)
+python scripts/init_db.py                      # create the database tables once
 python scripts/backtest.py                     # walk-forward vs Pinnacle closing odds, 2018-19 → 2025-26
 python scripts/polymarket_backtest.py          # vs real historic Polymarket prices (Aug 2025 →)
 python scripts/tune.py                         # re-fit the rating constants
+python scripts/ucl_backtest.py                 # Champions League walk-forward (+ Polymarket from 2025-26)
 ```
+
+### Web app
+
+```bash
+cd backend && ./venv/bin/uvicorn app.main:app --reload --port 8100     # API
+cd frontend && npm install && npm run dev                               # dashboard on http://localhost:3008
+```
+
+The API runs on port 8100 and the dashboard on 3008, so they don't clash with bk8 (port 8000) or Docker (port 3000). The API endpoints are `GET /api/v1/dashboard?days=7`, `GET /api/v1/matches/{EPL|LALIGA|UCL}`, `POST /api/v1/refresh` and `GET /api/v1/backtest`. Results are cached for 10 minutes. The first load after a start or refresh takes up to a minute.
+
+### Database
+
+`backend/.env` (gitignored) holds `DATABASE_URL`, the Supabase session-pooler URL; see `.env.example`. The tables are `prediction_runs`, `match_predictions`, `market_quotes`, `bets` and `match_results`.
 
 ## Data sources
 
@@ -30,6 +46,7 @@ python scripts/tune.py                         # re-fit the rating constants
 | Polymarket Gamma + CLOB | live match markets (1X2, spreads, totals, BTTS), price history | the stake is placed against these prices |
 | FPL `bootstrap-static` | EPL injuries/suspensions (chance of playing), player xG/xA, on-pitch xGC | EPL only |
 | `backend/data/absences.json` | manual absences for any league (copy `absences.example.json`) | there is no free La Liga injury feed |
+| ESPN scoreboard | results for ~20 European leagues + UCL / UEL / UECL incl. qualifiers, keyed by team id | cross-league ratings; throttled, backs off on 403/429 |
 
 Responses are cached under `backend/data/cache/`, which is gitignored.
 
@@ -114,12 +131,24 @@ backend/app/
 backend/app/connectors/   understat, football_data, polymarket, fpl, team_names, http (retry + cache)
 backend/app/services/     ratings (as-of-date, no look-ahead), standings, match_day (live pipeline)
 backend/app/backtest/     engine (vs Pinnacle), polymarket_bt (vs real Polymarket prices)
-backend/scripts/          predict.py, backtest.py, polymarket_backtest.py, tune.py
+backend/scripts/          predict.py, backtest.py, polymarket_backtest.py, tune.py, ucl_backtest.py, init_db.py
+backend/app/analytics/    global_ratings (cross-league Poisson model), knockout (two-legged ties, ET, penalties)
+backend/app/services/     ucl (Champions League pipeline), store (DB writes)
+backend/app/main.py       FastAPI app;  backend/app/db.py  SQLAlchemy models
+frontend/                 Next.js dashboard (Dashboard + Backtest pages)
 ```
+
+## Champions League
+
+UCL clubs come from many leagues, so they are rated with a separate model, `analytics/global_ratings.py`. It is one Poisson model fitted over about 20 domestic leagues and every UEFA match since July 2023, using ESPN results with recency weighting. Each team's strength is its league's level plus its own deviation from it. Matches between leagues in European competition are what put the leagues on one scale. Teams with little data are pulled toward their league's average and flagged LOW confidence.
+
+Knockout ties are priced in `analytics/knockout.py`: aggregate score over two legs, no away-goals rule, 30 minutes of extra time at 88% of the normal scoring rate, then penalties at 50/50. A final is a single match at a neutral venue. The dashboard shows the probability of each side going through, plus Polymarket's "(To Advance)" price when it lists one.
 
 ## Not done yet
 
-- **Champions League.** UCL matches pit leagues against each other, so team ratings need a league-strength adjustment. ClubElo, the usual source, is currently down, and many UCL clubs play outside Understat's leagues.
+- **No Champions League backtest yet.** The ESPN history download is still filling in after rate limiting, so `scripts/ucl_backtest.py` has not been run. Treat UCL numbers as unvalidated.
+- **No injury adjustment for the UCL**, because there is no free cross-league injury feed.
+- **Stage-reach markets are not priced.** Markets like "reach the quarterfinal" need a whole-tournament simulation.
 - **No live injury feed for La Liga.** Absences have to be entered by hand in `data/absences.json`.
 - **Schedule context only sees league matches.** Cup and European fixtures are not loaded, so midweek congestion is undercounted.
-- **No API or frontend.** The bk8 FastAPI endpoints and Next.js frontend are not ported; for now there is a CLI only.
+- **Dashboard is read-only.** There is no bet logging from the UI yet; the `bets` table exists, but no page writes to it.

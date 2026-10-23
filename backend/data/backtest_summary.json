@@ -1,0 +1,25 @@
+{
+  "as_of": "2026-10-23",
+  "conclusion": "Model alone is not a betting signal: Polymarket 60 min before kick-off is as sharp as Pinnacle's close, and buying model disagreements lost money in every market tested. All verdicts are capped at LEAN.",
+  "vs_pinnacle": {
+    "description": "Walk-forward EPL + La Liga, tuned on 2018-21, tested on 2022-25",
+    "matches": 3040,
+    "rows": [
+      {"name": "foot8 model", "ll_1x2": 0.9758, "ll_ou25": 0.6758},
+      {"name": "Pinnacle close (de-vigged)", "ll_1x2": 0.96, "ll_ou25": 0.6666}
+    ]
+  },
+  "vs_polymarket": {
+    "description": "915 settled EPL + La Liga matches, Aug 2025 → Oct 2026, priced 60 min before kick-off",
+    "matches": 915,
+    "rows": [
+      {"name": "foot8 model", "ll_1x2": 0.9994},
+      {"name": "Polymarket T-60 min", "ll_1x2": 0.9825},
+      {"name": "Pinnacle close", "ll_1x2": 0.9847}
+    ],
+    "betting": [
+      {"strategy": "Buy model edges ≥3%", "roi_range": "-2% to -47% by market"},
+      {"strategy": "Buy model edges ≥5%", "roi_range": "-5% to -20% by market"}
+    ]
+  }
+}

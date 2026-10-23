@@ -293,28 +293,54 @@ def predict_match(
     lambda_home = max(MIN_LAMBDA, lambda_home + supremacy_adj / 2.0)
     lambda_away = max(MIN_LAMBDA, lambda_away - supremacy_adj / 2.0)
 
-    # Step 3: score matrix
+    # Steps 3-4: score matrix → markets
+    prediction = predict_from_lambdas(
+        lambda_home, lambda_away, ah_line=ah_line, total_line=total_line, rho=rho,
+        confidence=confidence, home_advantage=home_advantage,
+        xgd_differential=xgd_diff, schedule_adjustment=schedule_adj + motivation_adj,
+    )
+    home_win, draw = prediction.home_win_prob, prediction.draw_prob
+    away_win = prediction.away_win_prob
+    ah_cover, over, btts = prediction.ah_cover_prob, prediction.over_prob, prediction.btts_prob
+
+    logger.info(
+        f"Prediction: xGD diff={xgd_diff:+.2f}, λ={lambda_home:.2f}-{lambda_away:.2f} "
+        f"(sched={schedule_adj:+.2f}, motiv={motivation_adj:+.2f}), "
+        f"1X2={home_win:.3f}/{draw:.3f}/{away_win:.3f}, "
+        f"AH {ah_line}={ah_cover:.3f}, O{total_line}={over:.3f}, BTTS={btts:.3f}"
+    )
+
+    return prediction
+
+
+def predict_from_lambdas(
+    lambda_home: float,
+    lambda_away: float,
+    ah_line: float | None = None,
+    total_line: float | None = None,
+    rho: float = DIXON_COLES_RHO,
+    confidence: str = "MEDIUM",
+    home_advantage: float = 0.0,
+    xgd_differential: float = 0.0,
+    schedule_adjustment: float = 0.0,
+) -> MatchPrediction:
+    """Score matrix and every market from final expected goals.
+
+    Shared by predict_match (xG ratings) and the cross-league model
+    (global_ratings), which produces expected goals directly.
+    """
     matrix = score_matrix(lambda_home, lambda_away, rho=rho)
-
-    # Step 4: markets
     home_win, draw, away_win = outcome_probabilities(matrix)
-
-    ah_cover = 0.5
-    if ah_line is not None:
-        ah_cover = asian_handicap_probabilities(matrix, ah_line)["fair_prob"]
-
-    over = 0.5
-    if total_line is not None:
-        over = total_goals_probabilities(matrix, total_line)["fair_prob"]
-
-    btts = btts_probability(matrix)
+    ah_cover = (asian_handicap_probabilities(matrix, ah_line)["fair_prob"]
+                if ah_line is not None else 0.5)
+    over = (total_goals_probabilities(matrix, total_line)["fair_prob"]
+            if total_line is not None else 0.5)
     hi, ai = np.unravel_index(int(np.argmax(matrix)), matrix.shape)
-
-    prediction = MatchPrediction(
+    return MatchPrediction(
         lambda_home=round(lambda_home, 3),
         lambda_away=round(lambda_away, 3),
-        xgd_differential=round(xgd_diff, 2),
-        schedule_adjustment=round(schedule_adj + motivation_adj, 2),
+        xgd_differential=round(xgd_differential, 2),
+        schedule_adjustment=round(schedule_adjustment, 2),
         home_advantage=home_advantage,
         projected_supremacy=round(lambda_home - lambda_away, 2),
         projected_total=round(lambda_home + lambda_away, 2),
@@ -325,19 +351,10 @@ def predict_match(
         ah_cover_prob=round(ah_cover, 3),
         total_line=total_line,
         over_prob=round(over, 3),
-        btts_prob=round(btts, 3),
+        btts_prob=round(btts_probability(matrix), 3),
         most_likely_score=f"{hi}-{ai}",
         confidence=confidence,
     )
-
-    logger.info(
-        f"Prediction: xGD diff={xgd_diff:+.2f}, λ={lambda_home:.2f}-{lambda_away:.2f} "
-        f"(sched={schedule_adj:+.2f}, motiv={motivation_adj:+.2f}), "
-        f"1X2={home_win:.3f}/{draw:.3f}/{away_win:.3f}, "
-        f"AH {ah_line}={ah_cover:.3f}, O{total_line}={over:.3f}, BTTS={btts:.3f}"
-    )
-
-    return prediction
 
 
 def league_scoring_baseline(

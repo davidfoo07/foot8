@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "foot8-backend", "runtimeExecutable": "./venv/bin/uvicorn", "runtimeArgs": ["app.main:app", "--reload", "--port", "8100"], "cwd": "backend", "port": 8100 },
+    { "name": "foot8-frontend", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "cwd": "frontend", "port": 3000 }
+  ]
+}

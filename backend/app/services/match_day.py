@@ -202,6 +202,15 @@ def _analyse_match(
         away_absences=[p.name for p in adj[away].missing_players],
         motivation=(h_mot, a_mot), confidence=confidence, warnings=warnings,
     )
+    analysis.markets = price_markets(mm, home, away, pred, matrix, confidence)
+    return analysis
+
+
+def price_markets(
+    mm: pm.MatchMarkets, home: str, away: str, pred: Any, matrix: np.ndarray, confidence: str,
+) -> list[PricedMarket]:
+    """Model probability + edge for every liquid market of a fixture."""
+    out: list[PricedMarket] = []
     for m in mm.markets:
         prob = _model_prob(m, pred, matrix)
         if prob is None or m.yes_price is None or not 0.01 <= m.yes_price <= 0.99:
@@ -210,13 +219,13 @@ def _analyse_match(
             continue
         edge = calculate_edge(prob, m.yes_price)
         max_v = "LEAN" if confidence == "LOW" else MAX_VERDICT
-        analysis.markets.append(PricedMarket(
+        out.append(PricedMarket(
             market_type=m.market_type, line=m.line, label=_label(m, home, away),
             price=m.yes_price, model_prob=round(prob, 4),
             edge=cap_verdict(edge, max_v), liquidity=m.liquidity,
         ))
-    analysis.markets.sort(key=lambda x: x.edge.best_edge, reverse=True)
-    return analysis
+    out.sort(key=lambda x: x.edge.best_edge, reverse=True)
+    return out
 
 
 def _model_prob(m: pm.OutcomeMarket, pred: Any, matrix: np.ndarray) -> float | None:

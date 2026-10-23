@@ -46,6 +46,14 @@ def _get(url: str, params: dict[str, Any] | None, headers: dict[str, str]) -> by
         return resp.content
 
 
+def is_cached(url: str, params: dict[str, Any] | None, ttl_seconds: float | None) -> bool:
+    """True when fetch_* would be served from the disk cache."""
+    path = _cache_path(url, params)
+    if ttl_seconds == 0 or not path.exists():
+        return False
+    return ttl_seconds is None or time.time() - path.stat().st_mtime < ttl_seconds
+
+
 def fetch_bytes(
     url: str,
     params: dict[str, Any] | None = None,
