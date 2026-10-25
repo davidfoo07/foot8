@@ -21,12 +21,16 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from app.services.match_day import MAX_VERDICT, MIN_LIQUIDITY, analyse_league
+from app.db import DatabaseNotConfiguredError, init_db, session_factory
+from app.services.history import graded_history
+from app.services.match_day import MAX_VERDICT, MIN_LIQUIDITY, MatchAnalysis, analyse_league
+from app.services.store import save_run
 from app.services.ucl import analyse_ucl, load_history
 
 LEAGUES = ("EPL", "LALIGA", "UCL")
 LEAGUE_NAMES = {"EPL": "Premier League", "LALIGA": "La Liga", "UCL": "Champions League"}
 CACHE_TTL = 600.0
+SAVE_INTERVAL = 3600.0   # store live predictions at most hourly per league (history grading)
 BACKTEST_FILE = Path(__file__).resolve().parents[1] / "data" / "backtest_summary.json"
 
 app = FastAPI(title="Foot8", version="0.1.0")
@@ -39,6 +43,9 @@ app.add_middleware(
 
 _cache: dict[tuple[str, int], tuple[float, dict[str, Any]]] = {}
 _locks: dict[tuple[str, int], asyncio.Lock] = {}
+_last_saved: dict[str, float] = {}
+_history_cache: dict[int, tuple[float, dict[str, Any]]] = {}
+_history_lock = asyncio.Lock()
 
 
 def _jsonable(obj: Any) -> Any:
@@ -55,22 +62,42 @@ def _jsonable(obj: Any) -> Any:
     return obj
 
 
+def _save_predictions(league: str, days: int, analyses: list[MatchAnalysis]) -> None:
+    """Store a pre-match snapshot so /history can grade it later (best effort)."""
+    if not analyses or time.time() - _last_saved.get(league, 0.0) < SAVE_INTERVAL:
+        return
+    try:
+        engine = init_db()
+        with session_factory(engine)() as session:
+            run = save_run(session, analyses, [league], days)
+        _last_saved[league] = time.time()
+        logger.info(f"saved {league} run {run.id} ({len(analyses)} matches)")
+    except DatabaseNotConfiguredError:
+        _last_saved[league] = time.time()
+    except Exception as e:  # noqa: BLE001 — never break the dashboard over the DB
+        logger.warning(f"could not save {league} predictions: {e}")
+
+
 def _compute(league: str, days: int) -> dict[str, Any]:
     started = time.time()
     warnings: list[str] = []
     matches: list[dict[str, Any]] = []
+    analyses: list[MatchAnalysis] = []
     try:
         if league == "UCL":
             history = load_history(cache_only=True)
             for u in analyse_ucl(days, history=history):
+                analyses.append(u.match)
                 row = _jsonable(u.match)
                 row["tie"] = _jsonable(u.tie) if u.tie else None
                 matches.append(row)
         else:
-            matches = [_jsonable(a) for a in analyse_league(league, days)]
+            analyses = analyse_league(league, days)
+            matches = [_jsonable(a) for a in analyses]
     except Exception as e:  # noqa: BLE001 — surface the failure to the dashboard
         logger.exception(f"{league} analysis failed")
         warnings.append(f"{LEAGUE_NAMES[league]} analysis failed: {e}")
+    _save_predictions(league, days, analyses)
     return {
         "league": league,
         "name": LEAGUE_NAMES[league],
@@ -145,6 +172,20 @@ async def dashboard(days: int = Query(7, ge=1, le=14)) -> dict[str, Any]:
 async def refresh(days: int = Query(7, ge=1, le=14)) -> dict[str, Any]:
     results = await asyncio.gather(*(_get(lg, days, force=True) for lg in LEAGUES))
     return {"refreshed": [r["league"] for r in results]}
+
+
+@app.get("/api/v1/history")
+async def history(days: int = Query(7, ge=1, le=60), force: bool = False) -> dict[str, Any]:
+    """Past predictions graded against results (live snapshots + backfill)."""
+    async with _history_lock:
+        hit = _history_cache.get(days)
+        if hit and not force and time.time() - hit[0] < CACHE_TTL:
+            return hit[1]
+        graded = await asyncio.to_thread(graded_history, days)
+        result = _jsonable({k: v for k, v in graded.items() if k != "matches"})
+        result["matches"] = [_jsonable(g) | {"result": g.result} for g in graded["matches"]]
+        _history_cache[days] = (time.time(), result)
+        return result
 
 
 @app.get("/api/v1/backtest")

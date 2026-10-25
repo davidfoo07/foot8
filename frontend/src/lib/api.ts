@@ -1,6 +1,6 @@
 /** API client for the Foot8 backend. */
 
-import type { BacktestSummary, Dashboard } from "@/types/api";
+import type { BacktestSummary, Dashboard, HistoryResponse } from "@/types/api";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8100/api/v1";
 
@@ -20,4 +20,6 @@ export const api = {
   getDashboard: (days = 7) => fetchJSON<Dashboard>(`/dashboard?days=${days}`),
   refresh: (days = 7) => fetchJSON<{ refreshed: string[] }>(`/refresh?days=${days}`, { method: "POST" }),
   getBacktest: () => fetchJSON<BacktestSummary>("/backtest"),
+  getHistory: (days = 7, force = false) =>
+    fetchJSON<HistoryResponse>(`/history?days=${days}${force ? "&force=true" : ""}`),
 };

@@ -123,3 +123,55 @@ export interface BacktestSummary {
   };
   ucl?: UclBacktest;
 }
+
+export interface GradedQuote {
+  label: string;
+  side: "YES" | "NO";
+  price: number;
+  model_prob: number;
+  edge: number;
+  verdict: string;
+  result: "WON" | "LOST" | "PUSH";
+  pnl: number;
+}
+
+export interface GradedMatch {
+  league: string;
+  slug: string;
+  kickoff: string;
+  home: string;
+  away: string;
+  source: "live" | "backfill";
+  predicted_at: string | null;
+  home_goals: number;
+  away_goals: number;
+  result: "H" | "D" | "A";
+  probs: { home_win: number; draw: number; away_win: number; btts: number };
+  market: { home_win: number; draw: number; away_win: number } | null;
+  pick: "H" | "D" | "A";
+  pick_correct: boolean;
+  ll_model: number;
+  ll_market: number | null;
+  quotes: GradedQuote[];
+}
+
+export interface HistorySummary {
+  matches: number;
+  live?: number;
+  pick_accuracy?: number;
+  market_pick_accuracy?: number | null;
+  ll_model?: number;
+  ll_market?: number | null;
+  picks?: number;
+  picks_won?: number;
+  pnl?: number;
+  roi?: number;
+}
+
+export interface HistoryResponse {
+  generated_at: string;
+  days: number;
+  pick_edge: number;
+  summary: Record<string, HistorySummary>;
+  matches: GradedMatch[];
+}
